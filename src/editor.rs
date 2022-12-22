@@ -1,19 +1,37 @@
-use std::io;
+use std::{env, io};
 
 use termion::{event::Key, input::TermRead};
 
-use crate::terminal::{Size, Terminal};
+use crate::{
+    document::Document,
+    terminal::{Size, Terminal},
+};
 
-#[derive(Default)]
 pub struct Editor {
     terminal: Terminal,
     cursor_position: Position,
+    document: Document,
 }
 
 #[derive(Default)]
 pub struct Position {
     pub x: usize,
     pub y: usize,
+}
+
+impl Default for Editor {
+    fn default() -> Self {
+        let args: Vec<String> = env::args().collect();
+        let document = match args.get(1) {
+            Some(file_name) => Document::open(file_name).unwrap_or_else(|_| Document::default()),
+            None => Document::default(),
+        };
+        Self {
+            terminal: Terminal::default(),
+            cursor_position: Position::default(),
+            document,
+        }
+    }
 }
 
 impl Editor {
@@ -29,10 +47,14 @@ impl Editor {
 
     fn refresh_screen(&self) -> Result<(), std::io::Error> {
         Terminal::hide_cursor();
-        let Size { height, .. } = self.terminal.size();
-        for _ in 0..*height {
+        let height = self.terminal.size().height;
+        for line_num in 0..height {
             Terminal::clear_current_line();
-            println!("~\r");
+            if let Some(row) = self.document.row(line_num as usize) {
+                println!("{}\r", row.string);
+            } else {
+                println!("~\r");
+            }
         }
         self.draw_status_bar();
         self.draw_message_bar();
@@ -58,6 +80,6 @@ impl Editor {
 
     fn draw_message_bar(&self) {
         Terminal::clear_current_line();
-        println!("~\r");
+        print!("~\r");
     }
 }
