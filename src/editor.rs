@@ -35,11 +35,12 @@ impl Default for Editor {
 }
 
 impl Editor {
-    pub fn run(&self) -> Result<(), std::io::Error> {
+    pub fn run(&mut self) -> Result<(), std::io::Error> {
         loop {
             self.refresh_screen()?;
             if self.process_key_press()? {
                 Terminal::clear_screen();
+                Terminal::move_cursor(&Position::default());
                 return Ok(());
             }
         }
@@ -47,6 +48,7 @@ impl Editor {
 
     fn refresh_screen(&self) -> Result<(), std::io::Error> {
         Terminal::hide_cursor();
+        Terminal::move_cursor(&Position::default());
         let height = self.terminal.size().height;
         for line_num in 0..height {
             Terminal::clear_current_line();
@@ -58,17 +60,32 @@ impl Editor {
         }
         self.draw_status_bar();
         self.draw_message_bar();
-        Terminal::move_cursor(&Position::default());
+        Terminal::move_cursor(&self.cursor_position);
         Terminal::show_cursor();
         Terminal::flush()
     }
 
-    fn process_key_press(&self) -> Result<bool, std::io::Error> {
+    fn process_key_press(&mut self) -> Result<bool, std::io::Error> {
         let key = Terminal::read_key()?;
+        let Position { mut x, mut y } = self.cursor_position;
+        let height = self.terminal.size().height as usize;
         match key {
             Key::Ctrl('q') => return Ok(true),
+            Key::Char('l') => {
+                x = x.saturating_add(1);
+            }
+            Key::Char('h') => {
+                x = x.saturating_sub(1);
+            }
+            Key::Char('j') if height - 1 > y => {
+                y = y.saturating_add(1);
+            }
+            Key::Char('k') => {
+                y = y.saturating_sub(1);
+            }
             _ => (),
         }
+        self.cursor_position = Position { x, y };
         Terminal::flush()?;
         Ok(false)
     }
