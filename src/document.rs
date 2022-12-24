@@ -20,4 +20,8 @@ impl Document {
     pub fn row(&self, line_num: usize) -> Option<&Row> {
         self.rows.get(line_num)
     }
+
+    pub fn len(&self) -> usize {
+        self.rows.len()
+    }
 }

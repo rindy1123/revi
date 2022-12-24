@@ -1,15 +1,13 @@
 use std::{cmp, env};
 
-use termion::{event::Key, input::TermRead};
+use termion::event::Key;
 
-use crate::{
-    document::Document,
-    terminal::{Size, Terminal},
-};
+use crate::{document::Document, terminal::Terminal};
 
 pub struct Editor {
     terminal: Terminal,
     cursor_position: Position,
+    offset: Position,
     document: Document,
 }
 
@@ -29,6 +27,7 @@ impl Default for Editor {
         Self {
             terminal: Terminal::default(),
             cursor_position: Position::default(),
+            offset: Position::default(),
             document,
         }
     }
@@ -49,11 +48,11 @@ impl Editor {
     fn refresh_screen(&self) -> Result<(), std::io::Error> {
         Terminal::hide_cursor();
         Terminal::move_cursor(&Position::default());
-        let height = self.terminal.size().height;
+        let height = self.terminal.size().height as usize;
         let width = self.terminal.size().width;
         for line_num in 0..height {
             Terminal::clear_current_line();
-            if let Some(row) = self.document.row(line_num as usize) {
+            if let Some(row) = self.document.row(line_num + self.offset.y) {
                 let width = cmp::min(row.len(), width as usize);
                 println!("{}\r", row.render(0, width));
             } else {
@@ -62,7 +61,11 @@ impl Editor {
         }
         self.draw_status_bar();
         self.draw_message_bar();
-        Terminal::move_cursor(&self.cursor_position);
+        let cursor_position = Position {
+            x: self.cursor_position.x - self.offset.x,
+            y: self.cursor_position.y - self.offset.y,
+        };
+        Terminal::move_cursor(&cursor_position);
         Terminal::show_cursor();
         Terminal::flush()
     }
@@ -86,8 +89,11 @@ impl Editor {
             Key::Char('h') => {
                 x = x.saturating_sub(1);
             }
-            Key::Char('j') if height > y + 1 => {
+            Key::Char('j') if self.document.len() > y + 1 => {
                 y = y.saturating_add(1);
+                if height <= y - self.offset.y {
+                    self.offset.y += 1;
+                }
             }
             Key::Char('k') => {
                 y = y.saturating_sub(1);
