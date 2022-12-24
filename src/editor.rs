@@ -49,12 +49,13 @@ impl Editor {
         Terminal::hide_cursor();
         Terminal::move_cursor(&Position::default());
         let height = self.terminal.size().height as usize;
-        let width = self.terminal.size().width;
+        let width = self.terminal.size().width as usize;
         for line_num in 0..height {
             Terminal::clear_current_line();
             if let Some(row) = self.document.row(line_num + self.offset.y) {
-                let width = cmp::min(row.len(), width as usize);
-                println!("{}\r", row.render(0, width));
+                let start = self.offset.x;
+                let end = self.offset.x.saturating_add(width);
+                println!("{}\r", row.render(start, end));
             } else {
                 println!("~\r");
             }
@@ -62,8 +63,8 @@ impl Editor {
         self.draw_status_bar();
         self.draw_message_bar();
         let cursor_position = Position {
-            x: self.cursor_position.x - self.offset.x,
-            y: self.cursor_position.y - self.offset.y,
+            x: self.cursor_position.x.saturating_sub(self.offset.x),
+            y: self.cursor_position.y.saturating_sub(self.offset.y),
         };
         Terminal::move_cursor(&cursor_position);
         Terminal::show_cursor();
@@ -74,29 +75,36 @@ impl Editor {
         let key = Terminal::read_key()?;
         let Position { mut x, mut y } = self.cursor_position;
         let height = self.terminal.size().height as usize;
-        let width = match self.document.row(y) {
-            Some(row) => {
-                let width = self.terminal.size().width as usize;
-                cmp::min(row.len(), width)
-            }
+        let width = self.terminal.size().width as usize;
+        let row_len = match self.document.row(y) {
+            Some(row) => row.len(),
             None => 0,
         };
         match key {
             Key::Ctrl('q') => return Ok(true),
-            Key::Char('l') if width > x + 1 => {
+            Key::Char('l') if row_len > x + 1 => {
                 x = x.saturating_add(1);
+                if x >= width + self.offset.x {
+                    self.offset.x += 1;
+                }
             }
             Key::Char('h') => {
                 x = x.saturating_sub(1);
+                if self.offset.x > x {
+                    self.offset.x -= 1;
+                }
             }
             Key::Char('j') if self.document.len() > y + 1 => {
                 y = y.saturating_add(1);
-                if height <= y - self.offset.y {
+                if y >= height + self.offset.y {
                     self.offset.y += 1;
                 }
             }
             Key::Char('k') => {
                 y = y.saturating_sub(1);
+                if self.offset.y > y {
+                    self.offset.y -= 1;
+                }
             }
             _ => (),
         }
@@ -106,6 +114,9 @@ impl Editor {
             Some(row) => cmp::min(x, row.len().saturating_sub(1)),
             None => 0,
         };
+        if self.offset.x > x {
+            self.offset.x = x;
+        }
         self.cursor_position = Position { x, y };
         Ok(false)
     }
