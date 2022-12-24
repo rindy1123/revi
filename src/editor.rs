@@ -1,4 +1,4 @@
-use std::{env, io};
+use std::{cmp, env};
 
 use termion::{event::Key, input::TermRead};
 
@@ -50,10 +50,12 @@ impl Editor {
         Terminal::hide_cursor();
         Terminal::move_cursor(&Position::default());
         let height = self.terminal.size().height;
+        let width = self.terminal.size().width;
         for line_num in 0..height {
             Terminal::clear_current_line();
             if let Some(row) = self.document.row(line_num as usize) {
-                println!("{}\r", row.string);
+                let width = cmp::min(row.len(), width as usize);
+                println!("{}\r", row.render(0, width));
             } else {
                 println!("~\r");
             }
@@ -69,15 +71,22 @@ impl Editor {
         let key = Terminal::read_key()?;
         let Position { mut x, mut y } = self.cursor_position;
         let height = self.terminal.size().height as usize;
+        let width = match self.document.row(y) {
+            Some(row) => {
+                let width = self.terminal.size().width as usize;
+                cmp::min(row.len(), width)
+            }
+            None => 0,
+        };
         match key {
             Key::Ctrl('q') => return Ok(true),
-            Key::Char('l') => {
+            Key::Char('l') if width > x + 1 => {
                 x = x.saturating_add(1);
             }
             Key::Char('h') => {
                 x = x.saturating_sub(1);
             }
-            Key::Char('j') if height - 1 > y => {
+            Key::Char('j') if height > y + 1 => {
                 y = y.saturating_add(1);
             }
             Key::Char('k') => {
@@ -85,8 +94,13 @@ impl Editor {
             }
             _ => (),
         }
+        // If the row the cursor is on is shorter than the previous one,
+        // the cursor moves to the last character of the current row.
+        let x = match self.document.row(y) {
+            Some(row) => cmp::min(x, row.len().saturating_sub(1)),
+            None => 0,
+        };
         self.cursor_position = Position { x, y };
-        Terminal::flush()?;
         Ok(false)
     }
 
