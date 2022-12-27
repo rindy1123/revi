@@ -39,7 +39,7 @@ dependencies = [
 ]
 
 [[package]]
-name = "rvim"
+name = "revi"
 version = "0.1.0"
 dependencies = [
  "termion",
