@@ -83,6 +83,28 @@ impl Editor {
 
     fn process_key_press(&mut self) -> Result<bool, std::io::Error> {
         let key = Terminal::read_key()?;
+        let quit = match self.mode {
+            Mode::Normal => self.process_normal_mode(key),
+            Mode::Insert => self.process_insert_mode(key),
+        };
+        Ok(quit)
+    }
+
+    fn process_normal_mode(&mut self, key: Key) -> bool {
+        match key {
+            Key::Ctrl('q') => return true,
+            Key::Char('l' | 'h' | 'j' | 'k') => {
+                self.move_cursor(key);
+            }
+            Key::Char('i') => {
+                self.mode = Mode::Insert;
+            }
+            _ => (),
+        }
+        false
+    }
+
+    fn move_cursor(&mut self, key: Key) {
         let Position { mut x, mut y } = self.cursor_position;
         let height = self.terminal.size().height as usize;
         let width = self.terminal.size().width as usize;
@@ -91,7 +113,6 @@ impl Editor {
             None => 0,
         };
         match key {
-            Key::Ctrl('q') => return Ok(true),
             Key::Char('l') if row_len > x + 1 => {
                 x = x.saturating_add(1);
                 if x >= width + self.offset.x {
@@ -119,9 +140,6 @@ impl Editor {
             Key::Char('i') => {
                 self.mode = Mode::Insert;
             }
-            Key::Esc => {
-                self.mode = Mode::Normal;
-            }
             _ => (),
         }
         // If the row the cursor is on is shorter than the previous one,
@@ -134,7 +152,20 @@ impl Editor {
             self.offset.x = x;
         }
         self.cursor_position = Position { x, y };
-        Ok(false)
+    }
+
+    fn process_insert_mode(&mut self, key: Key) -> bool {
+        match key {
+            Key::Char(c) => {
+                self.document.insert(&self.cursor_position, c);
+                self.move_cursor(Key::Char('l'));
+            }
+            Key::Esc => {
+                self.mode = Mode::Normal;
+            }
+            _ => (),
+        }
+        false
     }
 
     fn draw_status_bar(&self) {

@@ -1,6 +1,6 @@
 use std::fs;
 
-use crate::row::Row;
+use crate::{editor::Position, row::Row};
 
 #[derive(Default)]
 pub struct Document {
@@ -23,5 +23,15 @@ impl Document {
 
     pub fn len(&self) -> usize {
         self.rows.len()
+    }
+
+    pub fn insert(&mut self, at: &Position, c: char) {
+        let Position { x, y } = at;
+        if let Some(row) = self.rows.get_mut(*y) {
+            // TODO: deal with new line
+            if c != '\n' {
+                row.insert(*x, c);
+            }
+        }
     }
 }

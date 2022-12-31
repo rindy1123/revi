@@ -31,4 +31,19 @@ impl Row {
             .take(end - start)
             .collect()
     }
+
+    pub fn insert(&mut self, at: usize, c: char) {
+        let mut string = String::new();
+        let mut length = 0;
+        for (index, grapheme) in self.string.graphemes(true).enumerate() {
+            if index == at {
+                length += 1;
+                string.push(c);
+            }
+            length += 1;
+            string.push_str(grapheme);
+        }
+        self.string = string;
+        self.len = length;
+    }
 }
