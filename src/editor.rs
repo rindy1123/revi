@@ -1,6 +1,6 @@
 use std::{cmp, env};
 
-use termion::event::Key;
+use termion::{color, event::Key};
 
 use crate::{document::Document, terminal::Terminal};
 
@@ -22,6 +22,9 @@ enum Mode {
     Normal,
     Insert,
 }
+
+const STATUS_FG_COLOR: color::Rgb = color::Rgb(255, 255, 255);
+const STATUS_BG_COLOR: color::Rgb = color::Rgb(20, 130, 241);
 
 impl Default for Editor {
     fn default() -> Self {
@@ -136,14 +139,18 @@ impl Editor {
 
     fn draw_status_bar(&self) {
         Terminal::clear_current_line();
-        match self.mode {
-            Mode::Normal => {
-                println!("[NORMAL]\r");
-            }
-            Mode::Insert => {
-                println!("[INSERT]\r");
-            }
-        }
+
+        let width = self.terminal.size().width as usize;
+        Terminal::set_bg_color(STATUS_BG_COLOR);
+        Terminal::set_fg_color(STATUS_FG_COLOR);
+        let mode = match self.mode {
+            Mode::Normal => String::from("[NORMAL]"),
+            Mode::Insert => String::from("[INSERT]"),
+        };
+        let status_bar = format!("{}{}", mode, " ".repeat(width - mode.len()));
+        println!("{status_bar}\r");
+        Terminal::reset_fg_color();
+        Terminal::reset_bg_color();
     }
 
     fn draw_message_bar(&self) {
