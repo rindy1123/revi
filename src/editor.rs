@@ -9,12 +9,18 @@ pub struct Editor {
     cursor_position: Position,
     offset: Position,
     document: Document,
+    mode: Mode,
 }
 
 #[derive(Default)]
 pub struct Position {
     pub x: usize,
     pub y: usize,
+}
+
+enum Mode {
+    Normal,
+    Insert,
 }
 
 impl Default for Editor {
@@ -28,6 +34,7 @@ impl Default for Editor {
             terminal: Terminal::default(),
             cursor_position: Position::default(),
             offset: Position::default(),
+            mode: Mode::Normal,
             document,
         }
     }
@@ -106,6 +113,12 @@ impl Editor {
                     self.offset.y -= 1;
                 }
             }
+            Key::Char('i') => {
+                self.mode = Mode::Insert;
+            }
+            Key::Esc => {
+                self.mode = Mode::Normal;
+            }
             _ => (),
         }
         // If the row the cursor is on is shorter than the previous one,
@@ -123,11 +136,18 @@ impl Editor {
 
     fn draw_status_bar(&self) {
         Terminal::clear_current_line();
-        println!("~\r");
+        match self.mode {
+            Mode::Normal => {
+                println!("[NORMAL]\r");
+            }
+            Mode::Insert => {
+                println!("[INSERT]\r");
+            }
+        }
     }
 
     fn draw_message_bar(&self) {
         Terminal::clear_current_line();
-        print!("~\r");
+        print!("\r");
     }
 }
